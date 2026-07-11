@@ -102,6 +102,9 @@ class LangEnglish(object):
     AUTH_NEXT_STEP = "Go to {} within the next {} to complete setup."
     AUTH_WAITING = "Waiting for authorization..."
     AUTH_TIMEOUT = "Operation timed out."
+    AUTH_BROWSER_FAILED = "Couldn't open a browser. Open the link above manually."
+    AUTH_MANUAL_PASTE = ("After authorizing, login continues automatically. If it doesn't, "
+                         "paste the redirected URL (or the code) here and press Enter.")
 
     MSG_VALID_ACCESSTOKEN = "AccessToken good for {}."
     MSG_INVALID_ACCESSTOKEN = "Expired AccessToken. Attempting to refresh it."

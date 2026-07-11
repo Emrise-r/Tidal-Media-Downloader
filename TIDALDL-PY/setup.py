@@ -1,5 +1,10 @@
+import re
 from setuptools import setup, find_packages
-from tidal_dl.printf import VERSION
+
+# Read VERSION from tidal_dl/printf.py without importing the package (the package
+# uses flat imports that only resolve at runtime, not during the build).
+with open('tidal_dl/printf.py', encoding='utf-8') as _f:
+    VERSION = re.search(r"^VERSION\s*=\s*['\"]([^'\"]+)['\"]", _f.read(), re.M).group(1)
 
 setup(
     name='tidal-dl',
