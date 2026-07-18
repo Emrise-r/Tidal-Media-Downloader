@@ -72,6 +72,13 @@ class Playlist(aigpy.model.ModelBase):
         self.squareImage = None
 
 
+class MediaMetadata(aigpy.model.ModelBase):
+    def __init__(self) -> None:
+        super().__init__()
+        # e.g. ["HIRES_LOSSLESS", "LOSSLESS", "MQA", "DOLBY_ATMOS"]
+        self.tags = None
+
+
 class Track(aigpy.model.ModelBase):
     def __init__(self) -> None:
         super().__init__()
@@ -85,6 +92,9 @@ class Track(aigpy.model.ModelBase):
         self.isrc = None
         self.explicit = False
         self.audioQuality = None
+        # The legacy audioQuality field caps at LOSSLESS/HI_RES; the real
+        # ceiling (incl. HI_RES_LOSSLESS) is advertised via mediaMetadata.tags.
+        self.mediaMetadata = MediaMetadata()
         self.copyRight = None
         self.artist = Artist()
         self.artists = Artist()
