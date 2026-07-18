@@ -22,7 +22,7 @@ from settings import *
 from lang.language import *
 
 
-VERSION = '2026.07.18.2'
+VERSION = '2026.07.18.3'
 __LOGO__ = rf'''
  /$$$$$$$$ /$$       /$$           /$$               /$$ /$$
 |__  $$__/|__/      | $$          | $$              | $$| $$

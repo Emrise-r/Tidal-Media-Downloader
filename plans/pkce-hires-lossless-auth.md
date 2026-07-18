@@ -122,3 +122,24 @@ Menu label(s); add `AUTH_PKCE_*` / `AUTH_MANUAL_PASTE` strings.
 5. HI_RES_LOSSLESS: set quality Max; download HiRes track; `getStreamUrl` requests
    `HI_RES_LOSSLESS` and returns a stream.
 6. Device flow still works for a device key (e.g. index 4).
+
+## Post-plan (shipped)
+Work done after the original plan landed:
+- **PyPI release** as `tidal-dl-max` (the `tidal-dl` name is upstream's); command stays `tidal-dl`.
+  `setup.py` gained PyPI metadata, `python_requires>=3.10`, and reads VERSION without importing.
+- **Python 3.10–3.14** verified (install + import + CLI) in clean venvs. `printf.py` logo made a
+  raw f-string to clear the `\_` SyntaxWarning.
+- **Dependency hygiene**: dropped unused `psutil` and `lxml` (parse_mpd uses stdlib
+  `xml.etree.ElementTree`); bumped `requests`/`pycryptodome` to clear 4 Dependabot CVEs.
+  Removing `lxml` also fixes Termux/Android installs (no libxml2 compile).
+- **`Max-Q` fix**: `Track` now captures `mediaMetadata` (via a `MediaMetadata` submodel) and
+  reports the true ceiling (HI_RES_LOSSLESS) instead of the legacy `audioQuality` field.
+- **OS scheme registration refactor**: split into `pkce_windows/linux/macos.py` behind a
+  `SchemeStrategy` base (see AGENTS.md), force-register on each launch/login, clearer Windows
+  prompt label. On Windows the classic desktop TIDAL must replace the MSIX Store app (which
+  claims `tidal://` at the manifest level). Termux has no scheme handler — reuse a copied token.
+- **Remote keys re-enabled (reversal of the original decision)**: `apiKey.py` now refreshes the
+  key table from a raw gist (`__KEYS_URL__`, or `TIDAL_KEYS_URL`) at startup, falling back to the
+  embedded keys on any error. Verification #1 above ("no github HTTP") no longer applies. Keep the
+  remote list append-only — `apiKeyIndex` is positional and PKCE stays at index 5.
+- i18n: completed the Vietnamese `AUTH_*` strings.
