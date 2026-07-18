@@ -94,9 +94,10 @@ def main():
         mainCommand()
         return
 
-    # Register the tidal:// URL scheme (once) so the browser redirect from the
-    # PKCE login is delivered back to this CLI. Never fatal.
-    pkce.register_scheme()
+    # Register the tidal:// URL scheme so the browser redirect from the PKCE
+    # login is delivered back to this CLI. Force it every launch so a competing
+    # app (e.g. the TIDAL desktop client) can't quietly steal the scheme. Never fatal.
+    pkce.register_scheme(force=True)
 
     Printf.logo()
     Printf.settings()

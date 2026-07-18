@@ -18,6 +18,7 @@ setup(
     packages=find_packages(exclude=['tidal_gui*']),
     include_package_data=False,
     platforms="any",
+    python_requires=">=3.10",
     install_requires=["aigpy>=2022.7.8.1", 
                       "requests>=2.22.0",
                       "pycryptodome", 

@@ -271,6 +271,9 @@ def loginByPkce():
     server = None
     try:
         print(LANG.select.AUTH_START_LOGIN)
+        # Re-assert our tidal:// handler right before login so the redirect is
+        # delivered to this CLI even if another app grabbed the scheme meanwhile.
+        pkce.register_scheme(force=True)
         url = TIDAL_API.getPkceLoginUrl()
 
         pkce.clear_authcode()  # drop any stale code from a previous attempt

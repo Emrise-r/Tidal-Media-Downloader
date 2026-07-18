@@ -16,7 +16,6 @@
 import json
 import os
 import platform
-import shlex
 import shutil
 import subprocess
 import sys
@@ -281,123 +280,87 @@ def deliver_callback(url):
 
 
 # ----------------------------------------------------------------------------
-# OS URL-scheme registration
+# OS URL-scheme registration (Strategy pattern)
+#
+# The concrete per-OS strategies live in their own modules — pkce_windows /
+# pkce_linux / pkce_macos — and are imported lazily so importing this module
+# never pulls in platform-specific machinery (e.g. winreg). The base class and
+# the shared plumbing (launch command, home dir, cli lookup) stay here.
 # ----------------------------------------------------------------------------
 def _cli_executable():
-    """Path/command used to relaunch the CLI as the scheme handler."""
-    exe = shutil.which('tidal-dl')
-    if exe:
-        return exe
-    return None
+    """Path to the installed console script, or None if it isn't on PATH."""
+    return shutil.which('tidal-dl')
 
 
-def _register_linux():
-    exe = _cli_executable()
-    apps_dir = os.path.join(_home_path(), '.local', 'share', 'applications')
-    os.makedirs(apps_dir, exist_ok=True)
-    desktop = os.path.join(apps_dir, 'tidal-dl.desktop')
-    if exe:
-        exec_line = '%s --auth-callback %%u' % shlex.quote(exe)
+class SchemeStrategy:
+    """
+    Base strategy for registering the `tidal://` URL scheme to point at this CLI.
+
+    A subclass implements register() for a single OS. Everything platform-neutral
+    (building the handler command, resolving the home dir and scheme name) is
+    provided here, so each OS module holds only its own registration code.
+    """
+
+    def __init__(self, scheme, home_path, cli_executable):
+        self.scheme = scheme
+        self._home_path = home_path
+        self._cli_executable = cli_executable
+
+    def home_path(self):
+        return self._home_path()
+
+    def launch_command(self, arg, quote):
+        """
+        Build the '<cli> --auth-callback <arg>' handler command, falling back to
+        'python -m tidal_dl ...' when the console script isn't on PATH. `arg` is
+        the OS redirect-URL placeholder ("%1", %u, "$1"); `quote` wraps the
+        executable path for that platform's shell/registry syntax.
+        """
+        exe = self._cli_executable()
+        if exe:
+            return quote(exe) + ' --auth-callback ' + arg
+        return quote(sys.executable) + ' -m tidal_dl --auth-callback ' + arg
+
+    def register(self):
+        """Register the scheme with the OS. Return True on success."""
+        raise NotImplementedError
+
+
+def _make_scheme_strategy():
+    """Return a SchemeStrategy for the current OS, or None if unsupported."""
+    if _is_termux():
+        return None  # Android/Termux: no OS scheme registration; manual paste is used
+    system = platform.system()
+    if system == 'Windows':
+        from pkce_windows import WindowsSchemeStrategy as Strategy
+    elif system == 'Darwin':
+        from pkce_macos import MacosSchemeStrategy as Strategy
+    elif system == 'Linux':
+        from pkce_linux import LinuxSchemeStrategy as Strategy
     else:
-        exec_line = '%s -m tidal_dl --auth-callback %%u' % shlex.quote(sys.executable)
-    content = (
-        "[Desktop Entry]\n"
-        "Name=tidal-dl\n"
-        "Comment=TIDAL login callback handler\n"
-        "Exec=%s\n"
-        "Type=Application\n"
-        "Terminal=false\n"
-        "NoDisplay=true\n"
-        "MimeType=x-scheme-handler/%s;\n" % (exec_line, SCHEME)
-    )
-    with open(desktop, 'w') as f:
-        f.write(content)
-    if shutil.which('xdg-mime'):
-        subprocess.run(['xdg-mime', 'default', 'tidal-dl.desktop',
-                        'x-scheme-handler/%s' % SCHEME], check=False)
-    if shutil.which('update-desktop-database'):
-        subprocess.run(['update-desktop-database', apps_dir], check=False)
-    return True
-
-
-def _register_windows():
-    import winreg
-    exe = _cli_executable()
-    if exe:
-        command = '"%s" --auth-callback "%%1"' % exe
-    else:
-        command = '"%s" -m tidal_dl --auth-callback "%%1"' % sys.executable
-    base = r'Software\Classes\%s' % SCHEME
-    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, base) as key:
-        winreg.SetValueEx(key, None, 0, winreg.REG_SZ, 'URL:TIDAL Protocol')
-        winreg.SetValueEx(key, 'URL Protocol', 0, winreg.REG_SZ, '')
-    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, base + r'\shell\open\command') as key:
-        winreg.SetValueEx(key, None, 0, winreg.REG_SZ, command)
-    return True
-
-
-def _register_macos():
-    exe = _cli_executable()
-    launch = ('%s --auth-callback "$1"' % shlex.quote(exe)) if exe \
-        else ('%s -m tidal_dl --auth-callback "$1"' % shlex.quote(sys.executable))
-    app = os.path.join(_home_path(), 'Applications', 'tidal-dl-scheme.app')
-    macos_dir = os.path.join(app, 'Contents', 'MacOS')
-    os.makedirs(macos_dir, exist_ok=True)
-    info_plist = os.path.join(app, 'Contents', 'Info.plist')
-    with open(info_plist, 'w') as f:
-        f.write(
-            '<?xml version="1.0" encoding="UTF-8"?>\n'
-            '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
-            '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
-            '<plist version="1.0"><dict>\n'
-            '  <key>CFBundleIdentifier</key><string>com.tidal-dl.scheme</string>\n'
-            '  <key>CFBundleName</key><string>tidal-dl-scheme</string>\n'
-            '  <key>CFBundleExecutable</key><string>run</string>\n'
-            '  <key>CFBundleURLTypes</key><array><dict>\n'
-            '    <key>CFBundleURLName</key><string>com.tidal-dl.scheme</string>\n'
-            '    <key>CFBundleURLSchemes</key><array><string>%s</string></array>\n'
-            '  </dict></array>\n'
-            '</dict></plist>\n' % SCHEME
-        )
-    run = os.path.join(macos_dir, 'run')
-    with open(run, 'w') as f:
-        f.write('#!/bin/sh\n%s\n' % launch)
-    os.chmod(run, 0o755)
-    lsregister = ('/System/Library/Frameworks/CoreServices.framework/Frameworks/'
-                  'LaunchServices.framework/Support/lsregister')
-    if os.path.exists(lsregister):
-        subprocess.run([lsregister, '-R', '-f', app], check=False)
-    return True
+        return None
+    return Strategy(SCHEME, _home_path, _cli_executable)
 
 
 def register_scheme(force=False):
     """
     Register the `tidal://` URL scheme to point at this CLI, once per machine.
-    Idempotent via a marker file. Never raises — logs failures and returns bool.
+    Idempotent via a marker file. Never raises — returns bool.
     """
     marker = _scheme_marker_path()
     if not force and os.path.exists(marker):
         return True
 
-    system = platform.system()
     try:
-        if _is_termux():
-            ok = False  # Android/Termux: no OS scheme registration; manual paste is used
-        elif system == 'Windows':
-            ok = _register_windows()
-        elif system == 'Darwin':
-            ok = _register_macos()
-        elif system == 'Linux':
-            ok = _register_linux()
-        else:
-            ok = False
+        strategy = _make_scheme_strategy()
+        ok = strategy.register() if strategy else False
     except Exception:
         ok = False
 
     # Write the marker regardless so we don't retry noisily every launch.
     try:
         with open(marker, 'w') as f:
-            f.write('%s\n' % system)
+            f.write('%s\n' % platform.system())
     except Exception:
         pass
     return ok
