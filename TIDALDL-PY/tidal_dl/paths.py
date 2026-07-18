@@ -79,7 +79,9 @@ def getAlbumPath(album):
     retpath = retpath.replace(R"{ReleaseDate}", str(album.releaseDate))
     retpath = retpath.replace(R"{RecordType}", album.type)
     retpath = retpath.replace(R"{None}", "")
-    retpath = retpath.strip()
+    # Trim each folder segment so an empty {Flag} (no leading "[M] ") doesn't
+    # leave a leading space, e.g. "Artist/ Album" -> "Artist/Album".
+    retpath = '/'.join(seg.strip() for seg in retpath.split('/'))
     return f"{SETTINGS.downloadPath}/{retpath}"
 
 def getPlaylistPath(playlist):

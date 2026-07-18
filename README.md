@@ -50,6 +50,69 @@ pip3 install tidal-dl --upgrade
 
 If you are using windows system, you can use [tidal-pro](https://github.com/yaronzz/Tidal-Media-Downloader-PRO)
 
+## 🛠️ Build from source (PKCE / HI_RES_LOSSLESS fork)
+
+> The PyPI package above is the original **device-flow** build. This fork
+> (`feature/oauth2-pkce-flow`) adds an **OAuth2 PKCE login** (API key index `5`,
+> _TIDAL Desktop (PKCE)_) that unlocks **HI_RES_LOSSLESS**. It is not on PyPI —
+> install it from source.
+
+**Prerequisites**
+
+- Python **3.10 – 3.14** (verified on all five: install, import, and CLI run), `pip`, `git`
+- Optional: **ffmpeg** on `PATH` (used by `pydub` for some audio conversions)
+
+**Install (all platforms)**
+
+```shell
+git clone https://github.com/Emrise-r/Tidal-Media-Downloader.git
+cd Tidal-Media-Downloader/TIDALDL-PY
+git checkout feature/oauth2-pkce-flow
+pip install .
+tidal-dl
+```
+
+The console script installs to your user scripts dir (e.g. on Windows
+`%APPDATA%\Python\Python3xx\Scripts`); make sure it's on `PATH`. If `pip` can't
+overwrite `tidal-dl.exe`, close any running `tidal-dl` first (the exe is locked
+while running).
+
+**First-time login (PKCE)**
+
+1. Run `tidal-dl`, choose `7` (Select APIKey) → `5` (_TIDAL Desktop (PKCE)_).
+2. A browser opens — sign in and authorize. The `tidal://` redirect is captured
+   automatically: on first run the CLI registers a per-OS URL-scheme handler
+   (`pkce_windows` / `pkce_linux` / `pkce_macos`) so the code is delivered back
+   to the waiting session — no copy-paste needed.
+3. Choose `5` (Settings-Quality) → `4` (Max = HI_RES_LOSSLESS).
+
+If auto-capture ever fails, paste the `tidal://login/auth?code=…&state=…` URL
+(visible in the browser's DevTools console / address bar) into the waiting
+terminal — it's the built-in fallback.
+
+### Per-OS notes
+
+- **Windows — install the *classic* desktop TIDAL, not the Store app.** The
+  Microsoft Store (MSIX) TIDAL — package `WiMPMusic` — claims the `tidal://`
+  scheme at the app-manifest level, which **outranks this CLI's handler and
+  steals the login redirect**. Use winget and verify the source is the plain
+  `.exe` installer from `download.tidal.com`:
+
+  ```powershell
+  winget show TIDALMusicAS.TIDAL     # Installer Type: exe  (download.tidal.com)
+  winget install --id TIDALMusicAS.TIDAL -e
+  ```
+
+  If you already have the Store version, remove it first so this CLI's handler
+  wins, then install the classic one:
+
+  ```powershell
+  Get-AppxPackage WiMPMusic* | Remove-AppxPackage
+  ```
+
+- **Linux / macOS** — no competing packaged app, so the handler registers and
+  auto-capture works out of the box (manual paste remains the fallback).
+
 ### Nightly Builds
 
 |Download nightly builds from continuous integration: 	| [![Build Status][Build]][Actions] 
@@ -149,8 +212,13 @@ This project exists thanks to all the people who contribute.
 
 ## Developing
 
+Editable install so code changes are picked up without reinstalling:
+
 ```shell
-pip3 uninstall tidal-dl
-pip3 install -r requirements.txt --user
-python3 setup.py install
+cd TIDALDL-PY
+pip uninstall -y tidal-dl
+pip install -e .
 ```
+
+`requirements.txt` additionally lists the optional GUI deps (`PyQt5`,
+`qt-material`); they are only needed for `tidal-dl -g`.

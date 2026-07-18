@@ -10,6 +10,7 @@
 """
 
 from download import *
+import pkce
 
 '''
 =================================
@@ -263,6 +264,70 @@ def loginByWeb():
     except Exception as e:
         Printf.err(f"Login failed.{str(e)}")
         return False
+
+
+def loginByPkce():
+    """OAuth2 authorization-code + PKCE login (gcloud-style)."""
+    server = None
+    try:
+        print(LANG.select.AUTH_START_LOGIN)
+        # Re-assert our tidal:// handler right before login so the redirect is
+        # delivered to this CLI even if another app grabbed the scheme meanwhile.
+        pkce.register_scheme(force=True)
+        url = TIDAL_API.getPkceLoginUrl()
+
+        pkce.clear_authcode()  # drop any stale code from a previous attempt
+        port = getattr(SETTINGS, 'authCallbackPort', None) or pkce.DEFAULT_PORT
+        server = pkce.CallbackServer(port, TIDAL_API.key.state)
+        started = server.start()
+
+        opened = pkce.open_browser(url)
+
+        # 5 minutes to complete the browser sign-in.
+        print(LANG.select.AUTH_NEXT_STEP.format(
+            aigpy.cmd.green(url),
+            aigpy.cmd.yellow(__displayTime__(300))))
+        if not opened:
+            Printf.info(getattr(LANG.select, 'AUTH_BROWSER_FAILED',
+                                "Couldn't open a browser. Open the link above manually."))
+        print(getattr(LANG.select, 'AUTH_MANUAL_PASTE',
+                      "After authorizing, login continues automatically. If it doesn't, "
+                      "paste the redirected URL (or the code) here and press Enter."))
+        print(LANG.select.AUTH_WAITING)
+
+        code = pkce.wait_for_code(server if started else None, timeout=300,
+                                  allow_paste=True, expected_state=TIDAL_API.key.state)
+        server.stop()
+        server = None
+        pkce.clear_authcode()
+
+        if not code:
+            raise Exception(LANG.select.AUTH_TIMEOUT)
+
+        TIDAL_API.getTokenByCode(code)
+
+        Printf.success(LANG.select.MSG_VALID_ACCESSTOKEN.format(
+            __displayTime__(int(TIDAL_API.key.expiresIn))))
+
+        TOKEN.userid = TIDAL_API.key.userId
+        TOKEN.countryCode = TIDAL_API.key.countryCode
+        TOKEN.accessToken = TIDAL_API.key.accessToken
+        TOKEN.refreshToken = TIDAL_API.key.refreshToken
+        TOKEN.expiresAfter = time.time() + int(TIDAL_API.key.expiresIn)
+        TOKEN.save()
+        return True
+    except Exception as e:
+        if server is not None:
+            server.stop()
+        Printf.err(f"Login failed.{str(e)}")
+        return False
+
+
+def loginByWebAuto():
+    """Pick the login flow based on the selected API key's auth method."""
+    if apiKey.getAuthMethod(SETTINGS.apiKeyIndex) == 'pkce':
+        return loginByPkce()
+    return loginByWeb()
 
 
 def loginByConfig():

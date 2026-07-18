@@ -8,10 +8,15 @@
 @Contact :   yaronhuang@foxmail.com
 @Desc    :   tidal api
 '''
+import base64
+import hashlib
 import random
 import re
+import secrets
 import time
+import uuid
 from typing import List
+from urllib.parse import urlencode
 from xml.etree import ElementTree
 
 import requests
@@ -153,6 +158,59 @@ class TidalAPI(object):
         self.key.expiresIn = result['expires_in']
         return True
 
+    def getPkceLoginUrl(self) -> str:
+        # PKCE (RFC 7636): code_verifier + S256 code_challenge
+        verifier = secrets.token_urlsafe(64)
+        digest = hashlib.sha256(verifier.encode('ascii')).digest()
+        challenge = base64.urlsafe_b64encode(digest).decode('ascii').rstrip('=')
+
+        self.key.codeVerifier = verifier
+        self.key.state = 'TIDAL_' + secrets.token_hex(16)
+        self.key.clientUniqueKey = uuid.uuid4().hex
+        self.key.redirectUri = self.apiKey.get('redirectUri', 'tidal://login/auth')
+
+        scope = self.apiKey.get('scope', 'r_usr w_usr').replace(' ', '+')
+        params = {
+            'appMode': 'DESKTOP',
+            'client_id': self.apiKey['clientId'],
+            'client_unique_key': self.key.clientUniqueKey,
+            'code_challenge': challenge,
+            'code_challenge_method': 'S256',
+            'lang': 'en',
+            'redirect_uri': self.key.redirectUri,
+            'response_type': 'code',
+            'restrictSignup': 'true',
+            'scope': scope,
+            'state': self.key.state,
+        }
+        # scope uses '+' as the space separator; keep it literal (urlencode would escape it)
+        query = urlencode({k: v for k, v in params.items() if k != 'scope'})
+        query += '&scope=' + scope
+        self.key.authUrl = 'https://login.tidal.com/authorize?' + query
+        return self.key.authUrl
+
+    def getTokenByCode(self, code) -> bool:
+        data = {
+            'client_id': self.apiKey['clientId'],
+            'client_unique_key': self.key.clientUniqueKey,
+            'code': code,
+            'code_verifier': self.key.codeVerifier,
+            'grant_type': 'authorization_code',
+            'redirect_uri': self.key.redirectUri,
+            'scope': self.apiKey.get('scope', 'r_usr w_usr'),
+        }
+        # Public PKCE client: authenticate with code_verifier, no client secret.
+        result = self.__post__('/token', data)
+        if 'access_token' not in result:
+            raise Exception("Get token failed: " + json.dumps(result))
+
+        self.key.userId = result['user']['userId']
+        self.key.countryCode = result['user']['countryCode']
+        self.key.accessToken = result['access_token']
+        self.key.refreshToken = result['refresh_token']
+        self.key.expiresIn = result['expires_in']
+        return True
+
     def verifyAccessToken(self, accessToken) -> bool:
         header = {'authorization': 'Bearer {}'.format(accessToken)}
         result = requests.get('https://api.tidal.com/v1/sessions', headers=header).json()
@@ -162,13 +220,20 @@ class TidalAPI(object):
         return True
 
     def refreshAccessToken(self, refreshToken) -> bool:
+        # Use the client's declared scope (PKCE clients only allow "r_usr w_usr";
+        # requesting w_sub there fails with invalid_scope). Fall back to the legacy
+        # device-flow scope for keys that don't declare one.
+        scope = self.apiKey.get('scope') or 'r_usr+w_usr+w_sub'
         data = {
             'client_id': self.apiKey['clientId'],
             'refresh_token': refreshToken,
             'grant_type': 'refresh_token',
-            'scope': 'r_usr+w_usr+w_sub'
+            'scope': scope
         }
-        auth = (self.apiKey['clientId'], self.apiKey['clientSecret'])
+        # Public PKCE clients have no secret: refresh with client_id in the body
+        # and no HTTP-basic auth. Confidential (device) clients use basic auth.
+        secret = self.apiKey.get('clientSecret')
+        auth = (self.apiKey['clientId'], secret) if secret else None
         result = self.__post__('/token', data, auth)
         if 'status' in result and result['status'] != 200:
             return False

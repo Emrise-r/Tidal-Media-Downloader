@@ -8,10 +8,19 @@
 @Contact :   yaronhuang@foxmail.com
 @Desc    :
 '''
+import os
 import sys
 import getopt
+
+# This package uses flat intra-package imports (e.g. `from events import *`),
+# which only resolve when the package directory is on sys.path. Ensure that is
+# true regardless of the current working directory, so the installed `tidal-dl`
+# command (and the tidal:// scheme handler) works from anywhere.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import aigpy
 
+import pkce
 from events import *
 from settings import *
 from gui import startGui
@@ -22,7 +31,8 @@ def mainCommand():
     try:
         opts, args = getopt.getopt(sys.argv[1:],
                                    "hvgl:o:q:r:",
-                                   ["help", "version", "gui", "link=", "output=", "quality", "resolution"])
+                                   ["help", "version", "gui", "link=", "output=", "quality", "resolution",
+                                    "auth-callback="])
     except getopt.GetoptError as errmsg:
         Printf.err(vars(errmsg)['msg'] + ". Use 'tidal-dl -h' for usage.")
         return
@@ -31,6 +41,11 @@ def mainCommand():
     showGui = False
 
     for opt, val in opts:
+        if opt == '--auth-callback':
+            # Invoked by the OS `tidal://` scheme handler: forward the code to the
+            # waiting login session's loopback server, then exit.
+            pkce.deliver_callback(val)
+            return
         if opt in ('-h', '--help'):
             Printf.usage()
             return
@@ -66,7 +81,7 @@ def mainCommand():
 
     if link is not None:
         if not loginByConfig():
-            loginByWeb()
+            loginByWebAuto()
         Printf.info(LANG.select.SETTING_DOWNLOAD_PATH + ':' + SETTINGS.downloadPath)
         start(link)
 
@@ -79,14 +94,19 @@ def main():
         mainCommand()
         return
 
+    # Register the tidal:// URL scheme so the browser redirect from the PKCE
+    # login is delivered back to this CLI. Force it every launch so a competing
+    # app (e.g. the TIDAL desktop client) can't quietly steal the scheme. Never fatal.
+    pkce.register_scheme(force=True)
+
     Printf.logo()
     Printf.settings()
 
     if not apiKey.isItemValid(SETTINGS.apiKeyIndex):
         changeApiKey()
-        loginByWeb()
+        loginByWebAuto()
     elif not loginByConfig():
-        loginByWeb()
+        loginByWebAuto()
 
     Printf.checkVersion()
 
@@ -97,9 +117,9 @@ def main():
             return
         elif choice == "1":
             if not loginByConfig():
-                loginByWeb()
+                loginByWebAuto()
         elif choice == "2":
-            loginByWeb()
+            loginByWebAuto()
         elif choice == "3":
             loginByAccessToken()
         elif choice == "4":
@@ -110,7 +130,7 @@ def main():
             changeSettings()
         elif choice == "7":
             if changeApiKey():
-                loginByWeb()
+                loginByWebAuto()
         else:
             start(choice)
 

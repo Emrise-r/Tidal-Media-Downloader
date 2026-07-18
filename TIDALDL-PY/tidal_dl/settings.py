@@ -29,6 +29,7 @@ class Settings(aigpy.model.ModelBase):
     downloadVideos = True
     multiThread = False
     downloadDelay = True
+    authCallbackPort = 8989
 
     downloadPath = "./download/"
     audioQuality = AudioQuality.Normal
@@ -83,6 +84,8 @@ class Settings(aigpy.model.ModelBase):
             self.videoFileFormat = self.getDefaultPathFormat(Type.Video)
         if self.apiKeyIndex is None:
             self.apiKeyIndex = 0
+        if self.authCallbackPort is None:
+            self.authCallbackPort = 8989
 
         LANG.setLang(self.language)
 

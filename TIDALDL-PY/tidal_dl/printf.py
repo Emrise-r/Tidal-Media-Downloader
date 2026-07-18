@@ -22,8 +22,8 @@ from settings import *
 from lang.language import *
 
 
-VERSION = '2022.10.31.1'
-__LOGO__ = f'''
+VERSION = '2026.07.18.1'
+__LOGO__ = rf'''
  /$$$$$$$$ /$$       /$$           /$$               /$$ /$$
 |__  $$__/|__/      | $$          | $$              | $$| $$
    | $$    /$$  /$$$$$$$  /$$$$$$ | $$          /$$$$$$$| $$

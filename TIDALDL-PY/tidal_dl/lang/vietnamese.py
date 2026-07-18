@@ -102,6 +102,9 @@ class LangVietnamese(object):
     AUTH_NEXT_STEP = "Vào trang {} trong vòng {} để hoàn tất thiết lập."
     AUTH_WAITING = "Đang chờ xác minh..."
     AUTH_TIMEOUT = "Đã vượt quá thời gian chờ."
+    AUTH_BROWSER_FAILED = "Không thể mở trình duyệt. Hãy tự mở liên kết ở trên."
+    AUTH_MANUAL_PASTE = ("Sau khi cấp quyền, đăng nhập sẽ tự động tiếp tục. Nếu không, "
+                         "hãy dán URL chuyển hướng (hoặc mã) vào đây rồi nhấn Enter.")
 
     MSG_VALID_ACCESSTOKEN = "AccessToken vẫn tốt trong {}."
     MSG_INVALID_ACCESSTOKEN = "AccessToken hết hạn. Đang cố làm mới."

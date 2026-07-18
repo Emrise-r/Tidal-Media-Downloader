@@ -192,6 +192,12 @@ class LoginKey(aigpy.model.ModelBase):
         self.accessToken = None
         self.refreshToken = None
         self.expiresIn = None
+        # OAuth2 authorization-code + PKCE flow (transient, in-memory)
+        self.codeVerifier = None
+        self.state = None
+        self.redirectUri = None
+        self.clientUniqueKey = None
+        self.authUrl = None
 
 
 class StreamRespond(aigpy.model.ModelBase):
