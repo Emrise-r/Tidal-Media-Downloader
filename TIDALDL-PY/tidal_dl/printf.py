@@ -214,6 +214,23 @@ class Printf(object):
                      "==================================")
 
     @staticmethod
+    def __maxQuality__(data):
+        # The per-track audioQuality field predates HI_RES_LOSSLESS and caps at
+        # LOSSLESS/HI_RES. Prefer the mediaMetadata tags, which advertise the
+        # true ceiling; fall back to the legacy field when tags are absent.
+        tags = []
+        md = getattr(data, 'mediaMetadata', None)
+        if md is not None and getattr(md, 'tags', None):
+            tags = md.tags
+        if 'HIRES_LOSSLESS' in tags:
+            return 'HI_RES_LOSSLESS'
+        if 'LOSSLESS' in tags:
+            return 'LOSSLESS'
+        if 'MQA' in tags:
+            return 'MQA'
+        return data.audioQuality
+
+    @staticmethod
     def track(data: Track, stream: StreamUrl = None):
         tb = Printf.__gettable__([LANG.select.MODEL_TRACK_PROPERTY, LANG.select.VALUE], [
             [LANG.select.MODEL_TITLE, data.title],
@@ -221,7 +238,7 @@ class Printf(object):
             [LANG.select.MODEL_ALBUM, data.album.title],
             [LANG.select.MODEL_VERSION, data.version],
             [LANG.select.MODEL_EXPLICIT, data.explicit],
-            ["Max-Q", data.audioQuality],
+            ["Max-Q", Printf.__maxQuality__(data)],
         ])
         if stream is not None:
             tb.add_row(["Get-Q", str(stream.soundQuality)])
