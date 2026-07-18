@@ -183,3 +183,6 @@ TIDALDL-PY/tidal-gui.spec
 .env
 *.env
 .tidal-dl.env
+
+# python build metadata
+/TIDALDL-PY/*.egg-info/

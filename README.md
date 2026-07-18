@@ -35,11 +35,34 @@
     <br>
 </p>
 
+> ## ⚠️ Fork notice
+>
+> This is a **fork** of [**yaronzz/Tidal-Media-Downloader**](https://github.com/yaronzz/Tidal-Media-Downloader)
+> (Apache-2.0) — full credit to the original author for the project this builds on.
+>
+> What this fork adds:
+> - **OAuth2 PKCE login** (API key index `5`), unlocking **HI_RES_LOSSLESS** (24-bit FLAC)
+> - A per-OS `tidal://` callback handler so the browser login completes automatically
+> - Verified support for **Python 3.10 – 3.14**
+> - Corrected `Max-Q` reporting from `mediaMetadata` tags
+>
+> Published on PyPI as **[`tidal-dl-max`](https://pypi.org/project/tidal-dl-max/)** — the original
+> `tidal-dl` name belongs to the upstream author. The installed **command is still `tidal-dl`**.
+>
+> ```bash
+> pip install tidal-dl-max
+> ```
+>
+> See the **Build from source** section below for the first-time PKCE login and per-OS notes.
+
 ## 📺 Installation 
 
 ```shell
-pip3 install tidal-dl --upgrade
+pip install tidal-dl-max --upgrade
 ```
+
+> The command is `tidal-dl`. (Upstream's original package is `pip3 install tidal-dl`, which is
+> the device-flow build without PKCE / HI_RES_LOSSLESS.)
 
 | USE                                                   | FUNCTION                   |
 | ----------------------------------------------------- | -------------------------- |
