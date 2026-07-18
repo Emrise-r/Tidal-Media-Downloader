@@ -67,7 +67,7 @@ __KEYS_JSON__ = '''
             "from": "1nikolas (https://github.com/yaronzz/Tidal-Media-Downloader/pull/840)"
         },
         {
-            "platform": "TIDAL Desktop (PKCE)",
+            "platform": "Tidal client (PKCE)",
             "formats": "Normal/High/HiFi/Master/Max(HI_RES_LOSSLESS)",
             "clientId": "3a5dzbD1VqdaUmqG",
             "clientSecret": "",
@@ -75,12 +75,23 @@ __KEYS_JSON__ = '''
             "scope": "r_usr w_usr",
             "redirectUri": "tidal://login/auth",
             "valid": "True",
-            "from": "TIDAL desktop app (authorization-code + PKCE, unlocks HI_RES_LOSSLESS)"
+            "from": "emrise"
         }
     ]
 }
 '''
 __API_KEYS__ = json.loads(__KEYS_JSON__)
+
+# Optional remote key list. When a URL is configured, the embedded table above is
+# refreshed from it at startup so keys can be rotated WITHOUT republishing to PyPI
+# (the client ids are public, not secret). Any failure keeps the embedded keys, so
+# the tool still works offline / if the URL is down.
+# Configure via the TIDAL_KEYS_URL env var, or hard-code a raw gist URL here.
+# The URL must return the same JSON shape: {"version": "...", "keys": [ ... ]}.
+# This "no-hash" gist raw URL always serves the latest revision, so keys can be
+# rotated by editing the gist — no new release needed. TIDAL_KEYS_URL overrides it.
+__KEYS_URL__ = 'https://gist.githubusercontent.com/Emrise-r/10b7bff98778b465d8e44437290f5a21/raw/tidal-keys.json'
+
 __ERROR_KEY__ = {
     'platform': 'None',
     'formats': '',
@@ -193,5 +204,25 @@ def _apply_env_overrides():
         })
 
 
-_load_dotenv()
-_apply_env_overrides()
+def _load_remote_keys():
+    """
+    Refresh the key table from TIDAL_KEYS_URL (or __KEYS_URL__) if set. Lets keys
+    be rotated remotely without a new release. Never fatal: on any error (no URL,
+    network failure, bad JSON, empty list) the embedded keys are kept as-is.
+    """
+    url = os.environ.get('TIDAL_KEYS_URL') or __KEYS_URL__
+    if not url:
+        return
+    try:
+        import requests
+        data = requests.get(url, timeout=6).json()
+        if isinstance(data, dict) and isinstance(data.get('keys'), list) and data['keys']:
+            __API_KEYS__['version'] = data.get('version', __API_KEYS__.get('version'))
+            __API_KEYS__['keys'] = data['keys']
+    except Exception:
+        pass  # keep embedded keys
+
+
+_load_dotenv()          # so TIDAL_KEYS_URL can come from a .env file too
+_load_remote_keys()     # remote refresh (optional, falls back to embedded)
+_apply_env_overrides()  # env secret/custom-client overrides win on top
