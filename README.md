@@ -133,7 +133,10 @@ terminal — it's the built-in fallback.
   Get-AppxPackage WiMPMusic* | Remove-AppxPackage
   ```
 
-- **Linux / macOS** — no competing packaged app, so the handler registers and
+- **Linux** - test with Ubuntu 22 LTS/Fedora 44, use with venv or pyenv to
+  ignore os env impact
+
+- **macOS** — no competing packaged app, so the handler registers and
   auto-capture works out of the box (manual paste remains the fallback).
 
 ### Nightly Builds
@@ -211,14 +214,12 @@ terminal — it's the built-in fallback.
 
 ## ☕ Support
 
-If you really like my projects and want to support me, you can buy me a coffee and star this project. 
-
-<a href="https://www.buymeacoffee.com/yaronzz" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/arial-orange.png" alt="Buy Me A Coffee" style="height: 51px !important;width: 217px !important;" ></a>
+If you really like my projects and want to support me, you can buy me a coffee and star this project.
 
 ## 🎂 Contributors
 This project exists thanks to all the people who contribute. 
 
-<a href="https://github.com/yaronzz/Tidal-Media-Downloader/graphs/contributors"><img src="https://contributors-img.web.app/image?repo=yaronzz/Tidal-Media-Downloader" /></a>
+<a href="https://github.com/Emrise-r/Tidal-Media-Downloader/graphs/contributors"><img src="https://contributors-img.web.app/image?repo=Emrise-r/Tidal-Media-Downloader" /></a>
 
 ## 🎨 Libraries and reference
 
